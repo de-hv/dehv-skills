@@ -34,4 +34,4 @@ Estimated files: <n> (limit: <n>)
 (none)
 
 ## Log
-- YYYY-MM-DD: step created.
+- YYYY-MM-DD: step created (H<NNNN>).

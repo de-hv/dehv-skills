@@ -9,6 +9,7 @@
 - Jira: <story / epic>
 - Repos: <repo name → path>
 - Branches / PRs: <list>
+- History: [history/INDEX.md](history/INDEX.md)
 
 ## Rules
 - 25 or fewer changed files per PR.
@@ -39,4 +40,4 @@ flowchart LR
 | App URL | <url used for screenshots, if any> | |
 
 ## Log
-- YYYY-MM-DD: plan created.
+- YYYY-MM-DD: plan created (H0001).
