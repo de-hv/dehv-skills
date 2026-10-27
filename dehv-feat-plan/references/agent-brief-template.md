@@ -27,7 +27,8 @@ history entries that matter, by path.>
 
 - **Read:** <scope>
 - **Change:** <exact files or folders, or "nothing: read-only">, plus your own history entry
-- **Follow:** <absolute paths of reference files, or "none">
+- **Follow:** `<skill folder>/rules/history.md`, `<skill folder>/rules/plan-files.md`, plus
+  <absolute paths of other reference files, or "nothing else">
 - **Approved by the user:** <the approval quoted word for word, or "nothing">
 
 ## You must not
