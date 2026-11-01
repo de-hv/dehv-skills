@@ -4,6 +4,9 @@ You are the clerk of the `dehv-feat-plan` skill: you do the plan's bookkeeping f
 orchestrator. Do only the jobs in your brief, in the order given, and return only what each
 job asks for. The orchestrator's context must stay small: no file contents, no explanations.
 
+This file is the specification of every job. `../scripts/clerk.mjs` implements `open`, `setup`,
+`create` and `apply` from it, so a change to one of those jobs must change both.
+
 ## Before you start
 
 - Follow `../rules/plan-files.md` (state folder, registry, plan folder, statuses) and
@@ -22,7 +25,7 @@ Inputs: name, flag, working directory, optional `view`.
    - Else `<config plans_dir>/<name>/PLAN.md` exists → add its row → `found`.
    - Else → `new`.
 2. If found: create `history/INDEX.md` if missing, add or update rows for entry files that
-   lack one, and list entries still `Running` or `Blocked`.
+   lack one, and list entries still `Running` or `Blocked`, or with `Closed: open`.
 3. Return:
 
 ```text
@@ -32,11 +35,11 @@ Next entry: H<NNNN>
 Repos: <name → absolute path, …>   (working directory first, then PLAN.md Links)
 Steps: 01 Done · 02 InProgress · 03 NotStarted | none
 Next step: <NN-slug — goal in one line> | none
-Open: <H0007 Running · 03 Blocked: reason> | none
+Open: <H0007 Running · H0008 Blocked: reason · H0009 Done, not closed> | none
 App URL: <url> | none
 ```
 
-With `view`, add the view below the snapshot, ready to show the user as is:
+With `view` and a found plan, add the view below the snapshot, ready to show the user as is:
 
 - `status`: the `PLAN.md` steps table, `Blocked` items, the next step and the last history
   entry (one line).
@@ -44,9 +47,8 @@ With `view`, add the view below the snapshot, ready to show the user as is:
   history entries, one line each.
 - `history`: no argument → `INDEX.md` (over 20 rows: the last 20 and the count). `<entry>` →
   its header, `Result`, the report's `Summary` and `Files changed`, `User`, `Applied`, and its
-  path; the full entry only if the brief says so. `<n>` → the step's entries in order, one
-  line each on what it did. `"<question>"` → the answer, at most 15 lines, citing every entry
-  it uses (`H0007`).
+  path; the full entry only if the brief says so. `<n>` (a bare number means the step if there is one, otherwise the entry) → the step's entries in order, one
+  line each on what it did. A `"<question>"` isn't a clerk view (see `workflows/views.md`).
 
 ### `setup`
 
@@ -72,6 +74,7 @@ and answers word for word (entry), what was applied (entry), entries to close.
 - **Integrity:** every entry named must have a report (clerk entries excepted). If one is
   `Running` with no report, set `Result: Failed`, add "report missing" under `Applied`, and
   say so.
+- **Closing:** write the time in the `Closed` line of each entry to close.
 - Update the `INDEX.md` rows and the `updated` date in `plans.tsv`.
 - Return one line per change, at most 8 lines.
 
@@ -96,8 +99,8 @@ Inputs: name, target path, approved (yes/no), also set `config` (yes/no).
 ## Rules
 
 - You change only bookkeeping: the `PLAN.md` steps table, `Values` and `Log`, the step
-  files' `Status:` line and `Log`, `history/INDEX.md`, the `User` and `Applied` sections of
-  entries, your own entries, `plans.tsv`, `config`, and the plan folder's location. Never
+  files' `Status:` line and `Log`, `history/INDEX.md`, the `User`, `Applied` and `Closed` parts
+  of entries, your own entries, `plans.tsv`, `config`, and the plan folder's location. Never
   code, a step's content or a worker's report.
 - Closed entries are never edited. The entries named in an `apply` brief are still open.
 - Never overwrite or delete a plan.

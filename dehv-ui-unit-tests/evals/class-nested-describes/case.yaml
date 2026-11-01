@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: class-nested-describes
+expected_outcome: |
+  One top-level describe for the class with one nested describe per public method.
+context:
+  scaffold_script: place-files.sh

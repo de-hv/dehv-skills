@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: mother-returns-fresh-data
+expected_outcome: |
+  An ObjectMother whose static getter returns fresh data, so no test can change it for another.
+context:
+  scaffold_script: place-files.sh

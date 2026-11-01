@@ -11,23 +11,15 @@ description: >-
 
 Guidelines for writing thorough, consistent unit tests in any repo. Always adapt to the project's existing test runner, libraries, and file layout before writing new tests.
 
-## When to read this skill
-
-- Adding or updating unit tests for a function, class, hook, or component
-- Improving coverage for a utility module
-- Deciding which scenarios to cover and how to structure `describe` / `it` blocks
-
-**Mock data:** read [dehv-ui-mock-data](../dehv-ui-mock-data/SKILL.md) before creating or extending fixtures.
-
 ## Workflow
 
-1. **Discover** — inspect the unit under test and existing tests in the repo.
-2. **Plan scenarios** — list every behavior branch, edge case, and error path worth asserting.
-3. **Mocks** — reuse existing `__mocks__` fixtures; create new ones only when needed (see the `dehv-ui-mock-data` skill).
-4. **Write** — one top-level `describe` per testable utility; behavior-focused `it` titles.
-5. **Run** — execute the project's test command for the file or suite; fix failures before finishing.
+1. **Discover** — inspect the unit under test and the repo's test conventions.
+2. **Plan scenarios** — list the behaviors worth asserting, in priority order.
+3. **Mock data** — reuse existing fixtures; create new ones only when needed.
+4. **Write** — place the file, structure `describe` blocks, and keep tests isolated.
+5. **Run** — run the tests and the typecheck, then handle any failures by the failure policy.
 
-## Step 1 — Discover repo conventions
+## Step 1 — Discover
 
 Before writing tests, inspect the target repo:
 
@@ -35,15 +27,69 @@ Before writing tests, inspect the target repo:
 |--------------|---------------|
 | Test runner | `package.json` scripts (`test`, `test:unit`, `vitest`, `jest`) |
 | Config | `jest.config.*`, `vitest.config.*`, `setupTests.*` |
-| Test libraries | `@testing-library/react`, `renderHook`, `sinon`, `msw`, etc. |
+| Test libraries | `@testing-library/react`, `@testing-library/user-event`, `renderHook`, `sinon`, `msw`, etc. |
 | File layout | `__tests__/` co-located vs `*.test.ts` / `*.spec.ts` beside source |
 | Import style | path aliases (`@/`), relative imports |
-| Existing mocks | `**/__mocks__/**/*.mock.{js,ts}` |
+| Existing fixtures | `**/__mocks__/**`, `**/*.mock.*`, `**/__fixtures__/**`, `**/fixtures/**`, factories |
+| Typecheck | `package.json` scripts (`typecheck`, `type-check`, `tsc`), `tsconfig*.json` |
 | Nearby tests | tests in the same module or sibling folders |
 
 **Match what already exists.** Do not introduce a new runner, assertion library, or file naming scheme unless the user asks for it.
 
-## Step 2 — Test file placement
+## Step 2 — Plan scenarios
+
+Read the implementation and list its branches, parameters, and side effects. Then read [references/scenarios.md](references/scenarios.md) and use the section for the unit type under test: pure functions, adapters, classes, React components, hooks, or async / API layers.
+
+Add a test for each distinct behavior, in this order:
+
+1. Main behavior and each branch of the implementation
+2. Error paths, and empty or boundary values that callers can actually pass
+3. Variants of the same behavior, in one table-driven test
+
+**Skip:**
+
+- Inputs the types already rule out, such as `null` for a `string` parameter. Test them only where values cross an untyped boundary: API responses, parsed JSON, user input, or JavaScript callers.
+- Properties the code does not promise, such as idempotency of a pure function.
+- Behavior of the framework or of third-party libraries.
+
+**Use `it.each` for variants** that differ only in data. Use a separate `it` when the setup or the assertion differs. In runners without it (Mocha), loop over a table instead.
+
+```
+it.each([
+  ['USD', '$1.00'],
+  ['EUR', '€1.00'],
+])('formats %s with its symbol', (currency, expected) => {
+  expect(formatMoney(1, currency)).toBe(expected)
+})
+```
+
+## Step 3 — Mock data
+
+### Reuse before creating
+
+1. Search the fixture locations found in Step 1, near the module under test and in shared type folders.
+2. Read tests in the same feature area — import the same builders, mothers, or factories.
+3. Extend existing builders with `.with({ ... })` rather than duplicating objects.
+
+### Create when missing
+
+Follow the [dehv-ui-mock-data](../dehv-ui-mock-data/SKILL.md) skill. It follows the repo's fixture convention first; without one, it defaults to these classes:
+
+- **Builder** — per-test field overrides through `with()`
+- **ObjectMother** — fixed shared payloads through static getters
+- **Mock** — service / dependency doubles with `jest.fn()` / `vi.fn()`
+
+Never place large inline fixtures inside `it()` blocks. Extract them to the repo's fixture location, by default `__mocks__/{entity}.mock.{js,ts}`.
+
+```
+import { UserBuilder } from '../__mocks__/user.mock'
+
+const user = new UserBuilder().with({ active: false }).build()
+```
+
+## Step 4 — Write
+
+### File placement
 
 | Pattern | Example |
 |---------|---------|
@@ -55,11 +101,9 @@ Before writing tests, inspect the target repo:
 
 Use `.ts` / `.tsx` in TypeScript projects; `.js` / `.jsx` in JavaScript-only projects.
 
-## Step 3 — `describe` structure
+### `describe` structure
 
-### Multiple utilities in one module
-
-When the source file exports **more than one** testable function, method, or utility, give **each** its own top-level `describe` — named after that utility:
+**Multiple utilities in one module:** when the source file exports **more than one** testable function or utility, give **each** its own top-level `describe`, named after that utility:
 
 ```
 describe('formatToMoney', () => { ... })
@@ -69,9 +113,7 @@ describe('isValidEmail', () => { ... })
 
 Do **not** lump unrelated utilities under a single generic `describe('helpers')` unless the repo already does so consistently for that file.
 
-### Single class with multiple methods
-
-Use one top-level `describe` for the class, nested `describe` per method:
+**Single class with multiple methods:** use one top-level `describe` for the class, nested `describe` per method:
 
 ```
 describe('UserRepository', () => {
@@ -80,18 +122,14 @@ describe('UserRepository', () => {
 })
 ```
 
-### Single component or hook
-
-One top-level `describe` named after the component or hook:
+**Single component or hook:** one top-level `describe` named after the component or hook:
 
 ```
 describe('Spinner', () => { ... })
 describe('useClickOutside', () => { ... })
 ```
 
-### Nested grouping
-
-Inside a utility `describe`, group by scenario when it improves readability:
+**Nested grouping:** inside a utility `describe`, group by scenario when it improves readability:
 
 ```
 describe('isValidEmail', () => {
@@ -113,128 +151,26 @@ Use short, behavior-focused phrases. Pick one style per file and stay consistent
 
 State **expected outcome** or **condition + outcome**, not implementation details.
 
-## Step 4 — Scenario coverage
+### Component queries and interactions
 
-Cover **as many scenarios as the utility requires** — not a fixed count. Read the implementation and enumerate branches, parameters, and side effects. Add a test for each distinct behavior.
+Use the testing library already in the repo. With Testing Library:
 
-### Pure functions / utilities
+- Query in this order: `getByRole`, `getByLabelText`, `getByText`, and `getByTestId` only as a last resort.
+- Drive interactions with `@testing-library/user-event`. If the repo does not have it, use `fireEvent` rather than adding a dependency.
 
-| Scenario type | Examples |
-|---------------|----------|
-| Happy path | Valid input → expected output |
-| Empty / null / undefined | `''`, `null`, `undefined`, `[]`, `{}` |
-| Boundary values | `0`, `1`, max length, min length |
-| Invalid input | wrong type, malformed data, out-of-range |
-| Optional parameters | omitted arg vs explicit default |
-| Parameter variants | each enum / flag / mode combination |
-| Idempotency | calling twice yields same result |
-| Error paths | throws, returns error object, returns fallback |
-
-### Adapters / mappers
-
-| Scenario type | Examples |
-|---------------|----------|
-| Full mapping | all fields transformed correctly |
-| Partial / sparse input | missing optional fields |
-| Empty collections | `[]` → `[]` |
-| Conditional fields | flags that include or exclude mapped keys |
-| Nested objects | deep structure preserved or flattened |
-
-### Classes
-
-| Scenario type | Examples |
-|---------------|----------|
-| Per public method | own `describe` block |
-| State transitions | before / after mutations |
-| Invalid operations | calling method in wrong state |
-| Dependency interaction | mock collaborators called with correct args |
-
-### React components
-
-| Scenario type | Examples |
-|---------------|----------|
-| Renders | key elements, text, roles, test ids |
-| Props | default props, required props, conditional rendering |
-| User interaction | click, type, select — assert callback or UI change |
-| Loading / error / empty states | each visual state |
-| Accessibility | roles, labels, aria attributes when relevant |
-
-Use the testing library already in the repo (`@testing-library/react`, Enzyme, etc.). Prefer queries by role or test id over implementation details.
-
-### Hooks
-
-| Scenario type | Examples |
-|---------------|----------|
-| Initial return value | first render state |
-| State updates | `act` + user/event triggers |
-| Side effects | subscriptions, listeners, cleanup on unmount |
-| Dependency changes | different args → different behavior |
-| Error handling | invalid usage or failed async |
-
-Use `renderHook` (or the repo's equivalent) and reset mocks in `beforeEach`.
-
-### Async / API layers
-
-| Scenario type | Examples |
-|---------------|----------|
-| Success response | data returned / stored |
-| HTTP errors | 4xx, 5xx, network failure |
-| Empty response | no data |
-| Request shape | correct URL, method, body |
-
-Mock at the boundary the repo already uses (jest mocks, MSW, nock, etc.).
-
-## Step 5 — Mock data
-
-### Reuse before creating
-
-1. Search `__mocks__` near the module under test and in shared type folders.
-2. Read tests in the same feature area — import the same builders/mothers.
-3. Extend existing builders with `.with({ ... })` rather than duplicating objects.
-
-### Create when missing
-
-Follow the [dehv-ui-mock-data](../dehv-ui-mock-data/SKILL.md) skill:
-
-- **Builder** — per-test field overrides
-- **ObjectMother** — fixed shared payloads
-- **Mock** — service / dependency doubles with `jest.fn()` / `vi.fn()`
-
-Never place large inline fixtures inside `it()` blocks. Extract to `__mocks__/{entity}.mock.{js,ts}`.
-
-```
-import { UserBuilder } from '../__mocks__/user.mock'
-
-const user = new UserBuilder().with({ active: false }).build()
-```
-
-## Step 6 — Setup and isolation
+### Setup and isolation
 
 Use the test runner's hooks (`beforeEach`, `afterEach`, `beforeAll`, `afterAll`):
 
-- Reset mocks and spies in `beforeEach`
+- Reset mocks and spies in `beforeEach`, or create a new double for each test
 - Restore timers and modules in `afterEach` / `afterAll`
 - Use `jest.useFakeTimers()` / `vi.useFakeTimers()` only when the utility depends on time
 
 Do not share mutable state across tests.
 
-## Step 7 — Run tests
+### File skeletons
 
-Detect the command from `package.json`:
-
-```
-# Common patterns — use what the repo defines
-npm test -- path/to/file.test.ts
-yarn test path/to/file.test.ts
-npx vitest run path/to/file.test.ts
-npx jest path/to/file.test.ts
-```
-
-Run the specific file or suite after writing tests. Fix failures before considering the task done.
-
-## Quick reference — file skeleton
-
-### Utility module (multiple exports)
+**Utility module (multiple exports):**
 
 ```
 import { fnA, fnB } from '../module'
@@ -258,37 +194,82 @@ describe('fnB', () => {
 })
 ```
 
-### Component
+**Component:**
 
 ```
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MyComponent } from '../MyComponent'
 
 describe('MyComponent', () => {
   it('renders title', () => {
     render(<MyComponent title="Hello" />)
-    expect(screen.getByText('Hello')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Hello' })).toBeInTheDocument()
+  })
+
+  it('calls onSave when the save button is clicked', async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn() // or jest.fn()
+    render(<MyComponent title="Hello" onSave={onSave} />)
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
   })
 })
 ```
 
+## Step 5 — Run
+
+### Tests
+
+Detect the command from `package.json`, and run the specific file or suite:
+
+```
+# Common patterns — use what the repo defines
+npm test -- path/to/file.test.ts
+yarn test path/to/file.test.ts
+npx vitest run path/to/file.test.ts
+npx jest path/to/file.test.ts
+```
+
+### Typecheck
+
+In TypeScript projects, also run the typecheck, because test runners such as Vitest do not check types and a badly typed mock would pass unnoticed. Use the repo's script (`typecheck`, `type-check`). Without a script, run `npx tsc --noEmit` if a `tsconfig` covers the test files; otherwise, say that no typecheck ran.
+
+Fix errors in the test and mock files you touched. Report errors in other files without fixing them.
+
+### Failure policy
+
+For each failing test, find out whether the test or the production code is wrong:
+
+- **The test is wrong** (bad setup, wrong mock, misread expectation): fix the test.
+- **The test reveals a real bug:** do not weaken the assertion, match the test to the buggy behavior, or skip the test. Do not change production code. Leave the test failing, and report the test name, the expected and actual results, and the likely cause in the source.
+- **The intended behavior is unclear:** do not guess. Report what the code does and ask which behavior is right.
+
+Change production code only if the user asks for it.
+
 ## Checklist
 
 - [ ] Repo test runner, layout, and import style matched
-- [ ] Existing `__mocks__` searched and reused where possible
-- [ ] New mocks follow the `dehv-ui-mock-data` skill (Builder / ObjectMother / Mock classes)
-- [ ] One top-level `describe` per utility (or per class method when testing a class)
-- [ ] Scenarios cover happy path, edge cases, and error/empty paths as applicable
+- [ ] Existing fixtures searched and reused where possible
+- [ ] New mocks follow the `dehv-ui-mock-data` skill (repo convention first, then Builder / ObjectMother / Mock classes)
+- [ ] One top-level `describe` per utility, or one per class with a nested `describe` per method
+- [ ] Scenarios cover main behavior, branches, and reachable edge and error paths; no inputs the types rule out
+- [ ] Variants that differ only in data use `it.each`
 - [ ] `it` titles are behavior-focused and consistent within the file
 - [ ] Mocks reset in `beforeEach`; no shared mutable state
-- [ ] Tests run and pass via the project's test command
+- [ ] Tests run via the project's test command, and each one passes or is reported as a real bug
+- [ ] Typecheck run in TypeScript projects that have one
 
 ## Anti-patterns
 
 - One giant `describe` for unrelated functions in the same file
 - Testing only the happy path when branches or parameters exist
+- Testing inputs the types already rule out, or copy-pasting tests that differ only in data
 - Large inline fixture objects inside test bodies
-- Copy-pasting mock data instead of reusing `__mocks__`
+- Copy-pasting mock data instead of reusing existing fixtures
 - Asserting implementation details (internal state, private methods) over observable behavior
 - Introducing a new test library or file convention the repo does not use
 - Skipping running tests after adding them
+- Weakening an assertion or skipping a test to get a passing run

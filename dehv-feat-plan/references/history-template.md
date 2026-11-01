@@ -26,6 +26,7 @@ blocks stay intact.
 - **Step:** <NN-slug, or plan>
 - **Agent:** <worker · agent type | clerk | none: orchestrator>
 - **Result:** <Running | Done | Partial | Blocked | Failed>
+- **Closed:** <open, or YYYY-MM-DD HH:MM once the clerk closes it>
 - **Continues:** <H<NNNN>, or none>
 
 ## Brief

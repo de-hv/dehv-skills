@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: staged-only-and-flags-the-rest
+expected_outcome: |
+  The message describes only the staged change and the response says the unstaged and untracked changes are left out.
+context:
+  scaffold_script: place-files.sh

@@ -1,14 +1,12 @@
 ---
 name: dehv-feat-plan
 description: >-
-  Creates and runs a step-by-step feature plan in a plans folder chosen on first use and
-  remembered across runs: a PLAN.md with the status of every step, one detailed MD file per
-  step, screenshots that highlight UI changes when they help, and a full history of every
-  task. The session is a lean orchestrator: every command, file read and change runs in a
-  sub-agent that saves its full report in the plan's history, and a summary sub-agent shows a
-  styled summary after every change, so a whole plan can run in one session. Use it to create
-  a plan, continue or update it, show its status or history, work on a step, do the Jira work
-  for it, import existing work into a plan, or move a plan to another folder.
+  Creates and runs a step-by-step feature plan stored as Markdown: a PLAN.md with the status
+  of every step, one file per step, UI screenshots and a full history of every task. Use it to
+  create a plan, continue or update it, show its status or history, work on a step, do its
+  Jira work, import existing work into a plan, or move a plan to another folder.
+disable-model-invocation: true
+allowed-tools: Bash(node *dehv-feat-plan/scripts/clerk.mjs *)
 argument-hint: "<name> [--continue | --update | --status | --step <n> | --history [<entry> | <step> | \"question\"] | --jira | --import | --dir <path>] [\"details\"]"
 ---
 
@@ -41,7 +39,8 @@ Hints:
 - Quote multi-word text: `--continue "step 2 merged, PR #42"`.
 - In `--continue`, status shortcuts are accepted: `2=InReview 3=InProgress`.
 - `<n>` is the step number (`2`) or its slug (`rest-api-layer`).
-- `<entry>` is a history entry number: `H0007` or `7`.
+- `<entry>` is a history entry number: `H0007` or `H7`. A bare number means the step if there
+  is one, otherwise the entry.
 - If the flag comes before the name (`--continue ABC-100`), read it the same way.
 
 Examples:
@@ -67,20 +66,23 @@ reports. Briefs always pass them as absolute paths.
 | --- | --- | --- |
 | `workflows/` | Orchestrator | One file per command, read only when that command runs. |
 | `rules/` | Clerk, workers | `plan-files.md` (plans folder, registry, plan folder, statuses) and `history.md`. |
-| `references/` | Sub-agents | Templates (`plan-`, `step-`, `history-template.md`), the worker brief (`agent-brief-template.md`), `clerk.md`, `summary-template.md`, `screenshots.md`. |
+| `references/` | Sub-agents | Templates (`plan-`, `step-`, `history-template.md`), `worker.md`, `clerk.md`, `summary-template.md`, `screenshots.md`. |
+| `references/agent-brief-template.md` | Orchestrator | The short brief it fills in for each worker. |
+| `scripts/clerk.mjs` | Orchestrator runs it | The clerk's deterministic jobs (see [Clerk script](#clerk-script)). |
 
 ## Orchestrator and sub-agents
 
 The session running this skill is the **orchestrator**. It talks to you and dispatches
 sub-agents (the Agent tool, and SendMessage to continue one). **It runs no commands itself:**
 no shell, no git, Jira, MCP or browser tools, and no file reads or writes, not even
-`PLAN.md`. The one exception: it reads the `workflows/` file of the command being run. Every
-command runs in a sub-agent of one of three roles:
+`PLAN.md`. The exceptions: it reads the `workflows/` file of the command being run and
+`references/agent-brief-template.md`, and it runs `scripts/clerk.mjs`. Everything else runs in
+a sub-agent of one of three roles:
 
 | Role | Does | Agent type |
 | --- | --- | --- |
-| **Clerk** | Plan bookkeeping, following `references/clerk.md`: resolves the plan folder and returns a snapshot, keeps statuses, logs, `history/INDEX.md`, `plans.tsv` and `config`, moves plans, and renders the `--status`, `--step` and `--history` views. | `general-purpose`, small model (such as `haiku`) |
-| **Worker** | One task of a workflow (research, write plan, check, work on step, update plan, Jira, import, screenshots), from `references/agent-brief-template.md`. Saves its full report in its history entry. | Read-only type (such as `Explore`) for read-only tasks; `general-purpose` when it changes files |
+| **Clerk** | Plan bookkeeping, following `references/clerk.md`: resolves the plan folder and returns a snapshot, keeps statuses, logs, `history/INDEX.md`, `plans.tsv` and `config`, moves plans, and renders the `--status`, `--step` and `--history` views (except questions, see `workflows/views.md`). | `general-purpose`, small model (such as `haiku`) |
+| **Worker** | One task of a workflow (research, write plan, check, work on step, update plan, Jira, import, screenshots), from `references/agent-brief-template.md` and `references/worker.md`. Saves its full report in its history entry. | Always `general-purpose`: even a read-only task must write its history entry, and read-only types such as `Explore` have no file-writing tools. The brief's `Change` line is what keeps a task read-only. |
 | **Summary** | After any run that changed the plan or a repo, writes the summary you see, following `references/summary-template.md`. Read-only. | Read-only type, small model |
 
 Rules:
@@ -95,6 +97,9 @@ Rules:
   repos, rules and reference files) instead of their content, and copies only what a
   sub-agent can't read: your words and answers, word for word, and session context it needs
   (it can't see this conversation).
+- **Other skills by path.** A sub-agent may not be able to invoke a skill, so when a task needs
+  `dehv-commit`, `dehv-ui-unit-tests` or `dehv-ui-mock-data`, its brief lists the absolute path
+  of that skill's `SKILL.md`, next to this skill's folder, under `Follow`.
 - **One task per sub-agent.** Independent read-only tasks (one per repo, one per source) run
   in parallel. Tasks that change code run one at a time. The clerk never runs in parallel
   with another clerk or with a worker that edits plan files.
@@ -115,6 +120,26 @@ Rules:
   task in this session. If you agree, still write the history entry, with `Agent: none`, and
   the summary in the same format.
 
+### Clerk script
+
+The clerk's `open` (with its views), `setup`, `create` and `apply` jobs are plain file work, so
+the orchestrator runs them with the script instead of a sub-agent. Its output is what the clerk
+would return. `propose`, `move` and any job the script can't do stay with a clerk sub-agent.
+
+```bash
+node <skill folder>/scripts/clerk.mjs open --name <name> --cwd <dir> [--view status|step|history] [--arg <value>]
+node <skill folder>/scripts/clerk.mjs setup --plans-dir <path> [--approved]
+node <skill folder>/scripts/clerk.mjs create --name <name>
+node <skill folder>/scripts/clerk.mjs apply --name <name> <<'EOF'
+{ "statuses": [{ "step": "02", "status": "InReview", "entry": "H0009" }], "close": ["H0009"] }
+EOF
+```
+
+`apply` also takes `logs`, `values`, `answers`, `applied` and `newEntry`; the comment above
+`applyJob` in the script has the format. If the script exits with an error, show the error when
+it's about the plan (a plan that already exists, a closed entry). If it can't run (no Node, a
+crash), hand the job to a clerk sub-agent, which follows `references/clerk.md`.
+
 ### Run pattern
 
 Every command run follows the same shape:
@@ -134,7 +159,7 @@ Every command run follows the same shape:
 - Each step starts from a fresh clerk snapshot. The orchestrator never re-reads earlier
   entries or carries their details from one step to the next.
 - After a step's summary and the closing `apply`, offer the next step. On your OK, Continue
-  runs again in the same session.
+  runs again in the same session, and stops if the last step's changes aren't committed yet.
 - A new session loses nothing: the clerk's snapshot rebuilds the state from the files.
 
 ## Always first
@@ -142,7 +167,8 @@ Every command run follows the same shape:
 1. **Clerk `open`**, with `<name>`, the command and the session's working directory. It
    resolves the plan folder and returns the snapshot: plan state (`found`, `new` or
    `missing`) and path, `config`, next history entry, repos, step statuses, next step, open
-   or `Blocked` entries and app URL. Read-only commands pass their `view` in the same call.
+   or `Blocked` entries and app URL. Read-only commands pass their `view` in the same call, and
+   so do `<name>` and `<name> "<details>"` with `view: status`, shown if the plan already exists.
 2. Act on the snapshot:
    - `Config: missing` (first run) → ask which folder to use for plans; the clerk creates it
      if it's missing (after your OK) and writes `config` in its next call. Don't ask again.

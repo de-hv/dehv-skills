@@ -42,6 +42,16 @@ ${XDG_STATE_HOME:-~/.local/state}/dehv-feat-plan/
   the record of how it got there (see `rules/history.md`). A new session has no other memory
   of the plan; `plans.tsv` only says where it is.
 
+## Step numbers
+
+A step keeps its number and slug for life, because history entries and images refer to them.
+
+- The order of the rows in the `PLAN.md` table is the working order, so reordering only moves
+  rows and updates `Depends on`. The next step is the first `NotStarted` row with its
+  dependencies done.
+- A new step, including one split from another, takes the next unused number.
+- A step with history entries is never deleted: propose `Skipped`.
+
 ## Statuses
 
 `NotStarted` · `InProgress` · `InReview` · `Done` · `Blocked` · `Skipped`

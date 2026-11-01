@@ -1,14 +1,13 @@
 ---
 name: dehv-commit
-description: Suggests a commit message (a short title plus a detailed body) from the current changes, without committing. The user reviews the message and commits by hand. Use when the user asks for a commit message, a suggested commit, or wants to describe staged or unstaged changes before committing. Accepts optional hints such as a title, ticket, type or focus.
-argument-hint: "[title hint] [ticket=ABC-123] [type=feat|fix|refactor|test|docs|chore] [focus=...]"
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git branch:*), Read, Grep, Glob
+description: Suggests a commit message (a short title plus a detailed body) from the current changes, without committing. The user reviews the message and commits by hand. Use when the user asks for a commit message, a suggested commit, or wants to describe staged or unstaged changes before committing. Not for actually making the commit. Accepts optional hints such as a title, ticket, type, focus or language.
+argument-hint: "[title hint] [ticket=ABC-123] [type=feat|fix|refactor|test|docs|chore] [focus=...] [lang=...]"
+allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git branch --show-current), Read, Grep, Glob
 ---
 
 # Suggest a commit message
 
 Write a clear, short, detailed commit message for the current changes. **Never commit.** The user will commit by hand, possibly using this suggestion.
-Never include to claude as co-author.
 
 ## Rules
 - Read-only. Don't run `git commit`, `git add`, `git reset`, `git stash`, `git push`, or anything else that changes the repo or the index.
@@ -18,9 +17,9 @@ Never include to claude as co-author.
 ## 1. Gather context
 1. `git status --short` and `git branch --show-current`.
 2. Pick the scope:
-   - If anything is staged, describe only the staged changes: `git diff --cached -M --stat`, then `git diff --cached -M`.
-   - If nothing is staged, describe the working-tree changes (`git diff -M --stat`, `git diff -M`) and note that the message assumes everything will be staged.
-   - Also list untracked files from `git status` that look like part of the change.
+   - If there are no changes at all, say so and stop.
+   - If anything is staged, describe only the staged changes: `git diff --cached -M --stat`, then `git diff --cached -M`. If there are also unstaged or untracked changes, say in the output that the message leaves them out.
+   - If nothing is staged, describe the working-tree changes (`git diff -M --stat`, `git diff -M`) and note that the message assumes everything will be staged. `git diff` doesn't show untracked files, so read the ones from `git status` that look like part of the change: they can be the main part of it.
 3. For large diffs, start from the `--stat` output and read only the files needed to understand intent: renames, new modules, tests, config.
 4. Match the repo's style: look at `git log --no-merges --oneline -15` for tense, prefixes (`feat:`, ticket ids) and title length.
 5. Look for a ticket id in the branch name (for example `feat/ABC-123/...` gives `ABC-123`), unless an argument overrides it.
@@ -47,7 +46,7 @@ Never include to claude as co-author.
 Keep it short: the body should be readable in about 15 seconds.
 
 ## 4. Output
-1. One sentence saying what was analyzed: staged or working tree, file count, branch.
+1. One sentence saying what was analyzed: staged or working tree, file count, branch, and anything left out.
 2. The message in a single fenced `text` block, ready to copy.
 3. Optionally, one alternative title if there's a meaningfully different framing.
 4. A one-line hint:

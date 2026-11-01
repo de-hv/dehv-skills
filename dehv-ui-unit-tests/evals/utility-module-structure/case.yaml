@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: utility-module-structure
+expected_outcome: |
+  One top-level describe per export, data-only variants in it.each, tests and typecheck run and passing.
+context:
+  scaffold_script: place-files.sh

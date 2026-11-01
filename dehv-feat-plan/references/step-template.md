@@ -14,7 +14,7 @@
 Estimated files: <n> (limit: <n>)
 
 ## Tests
-- <what is tested>; mocks in `__mocks__` (Builder / ObjectMother).
+- <what is tested>; mocks per the plan's rules.
 
 ## Acceptance criteria
 - [ ] <criterion>

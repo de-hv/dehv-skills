@@ -14,10 +14,13 @@ later, from any session. The orchestrator, the clerk and the workers follow thes
 - **The clerk keeps `INDEX.md`:** workers never touch it, so parallel tasks don't clash. On
   `open` and `apply` the clerk adds or updates the row of every entry, writes the user's
   questions and answers word for word under `User`, and what was applied under `Applied`.
-- **Closed entries are never edited.** An entry closes with the clerk's `apply` at the end of
-  its run. Corrections go in a new entry that names the old one (`Continues: H0007`).
+- **Closed entries are never edited.** An entry closes when the clerk writes the time in its
+  `Closed` line, with `apply` at the end of its run. Until then it says `Closed: open`, so an
+  interrupted run stays visible. Entries with no `Closed` line, from older plans, count as
+  closed unless they're `Running` or `Blocked`. Corrections go in a new entry that names the old
+  one (`Continues: H0007`).
 - **Bookkeeping without a worker** (an empty plan, a move, status shortcuts) gets its own
-  entry from the clerk, with `Agent: clerk` and no report.
+  entry from the clerk, with `Agent: clerk` and no report, closed as soon as it's written.
 - Clerk snapshots and views and the summary don't get entries.
 - **Cite entries** in the logs: `- 2026-10-26: step 02 → InReview (H0007)`.
 - **No secrets.** Briefs and reports leave out tokens, passwords, cookies and personal data.

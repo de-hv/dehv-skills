@@ -13,7 +13,7 @@
 
 ## Rules
 - 25 or fewer changed files per PR.
-- Every code step includes tests; mocks use Builder / ObjectMother classes in `__mocks__` (`dehv-ui-mock-data`, `dehv-ui-unit-tests`).
+- Every code step includes tests; mocks follow the repo's fixture convention, or else Builder / ObjectMother classes in `__mocks__` (`dehv-ui-mock-data`, `dehv-ui-unit-tests`).
 - Commit messages proposed with `dehv-commit`.
 - No commit, push, merge or PR without confirmation.
 - One step = one PR: <yes / no / per step>.

@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: reports-no-changes
+expected_outcome: |
+  The repo has no changes, so the skill says so and stops without inventing a message.
+context:
+  scaffold_script: place-files.sh

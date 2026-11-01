@@ -1,7 +1,7 @@
 # Create (`<name>` or `<name> "<details>"`)
 
-1. If the plan exists, the `open` call returns the status view (`view: status`): show it
-   instead. Never overwrite.
+1. If the plan exists, show the status view the `open` call returned, instead of creating
+   anything. Never overwrite.
 2. **Clerk `create`**: the plan folder, `history/INDEX.md`, `PLAN.md` from the template with
    empty sections, the plan's row in `plans.tsv`, and entry `H0001`. Without details, the
    summary follows and the run ends.

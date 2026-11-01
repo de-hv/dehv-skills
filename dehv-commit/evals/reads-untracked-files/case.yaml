@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: reads-untracked-files
+expected_outcome: |
+  The only change is a new untracked file, so the skill reads it and the message describes what it does.
+context:
+  scaffold_script: place-files.sh
