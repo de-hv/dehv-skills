@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Architecture before / after</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9e7e1; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1f1e1c; }
+  #frame { display: inline-block; background: #fff; padding: 28px 32px 24px; }
+  h1 { margin: 0 0 18px; font-size: 22px; font-weight: 600; }
+  .cols { display: flex; gap: 28px; align-items: flex-start; }
+  .col { border: 1px solid #d3d1c7; border-radius: 8px; padding: 16px; min-width: 320px; }
+  .col.after { border: 2px solid #0f6e56; }
+  .pill { display: inline-block; font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 999px; margin-bottom: 12px; color: #fff; background: #5f5e5a; }
+  .after .pill { background: #0f6e56; }
+  .col svg { display: block; max-width: none; height: auto; }
+  .legend { display: flex; gap: 18px; margin-top: 16px; font-size: 13px; color: #5f5e5a; }
+  .sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; border: 2px solid; }
+  .error { color: #a32d2d; white-space: pre-wrap; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="frame">
+  <h1 id="title"></h1>
+  <div class="cols">
+    <div class="col before"><span class="pill">Before</span><div id="before"></div></div>
+    <div class="col after"><span class="pill">After</span><div id="after"></div></div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:#EAF3DE;border-color:#3B6D11"></span>Added</span>
+    <span><span class="sw" style="background:#FCEBEB;border-color:#A32D2D;border-style:dashed"></span>Removed</span>
+    <span><span class="sw" style="background:#FAEEDA;border-color:#854F0B"></span>Changed</span>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+  window.frameReady = false;
+  window.frameError = null;
+  (async () => {
+    try {
+      const b64 = location.hash.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+      const data = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))));
+      const title = document.getElementById('title');
+      if (data.title) title.textContent = data.title; else title.remove();
+      if (typeof mermaid === 'undefined') throw new Error('Mermaid did not load (no network access to cdn.jsdelivr.net?)');
+      mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'base', flowchart: { htmlLabels: false, curve: 'basis', useMaxWidth: false },
+        themeVariables: { fontFamily: 'system-ui, sans-serif', fontSize: '15px', primaryColor: '#F1EFE8', primaryBorderColor: '#888780', lineColor: '#5F5E5A' } });
+      for (const side of ['before', 'after']) {
+        const host = document.getElementById(side);
+        if (!data[side]) { host.textContent = side === 'before' ? 'Not present before' : 'Removed'; continue; }
+        const { svg } = await mermaid.render(`m-${side}`, data[side]);
+        host.innerHTML = svg;
+      }
+      requestAnimationFrame(() => { window.frameReady = true; });
+    } catch (e) {
+      window.frameError = String(e && e.message || e);
+      document.getElementById('frame').insertAdjacentHTML('beforeend', `<p class="error">${window.frameError}</p>`);
+    }
+  })();
+</script>
+</body>
+</html>

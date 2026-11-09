@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: architecture-change-azure
+expected_outcome: |
+  On a feature branch with committed architecture changes, the run detects Azure DevOps
+  (acme-demo / Orders / orders-portal), keeps the repo's .azuredevops PR template with all its
+  headings and puts the content under "## Description", makes a before/after architecture diagram
+  (feature GraphQL clients -> shared REST client, new Module Federation exposes) with the changes
+  highlighted, and stops without committing, pushing or creating a PR.
+context:
+  scaffold_script: place-files.sh

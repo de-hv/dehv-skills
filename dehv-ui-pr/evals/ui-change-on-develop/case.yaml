@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: ui-change-on-develop
+expected_outcome: |
+  On develop with an uncommitted UI change, the run proposes a feat/SHOP-42/... branch, creates it,
+  commits the change files (message with SHOP-42, no attribution lines), detects GitHub as the host,
+  captures before/after screenshots of the product grid with the rating badge highlighted, composes
+  a side-by-side image, writes a PR title and body that reference that image, and stops at the
+  preview without pushing or creating a PR.
+context:
+  scaffold_script: place-files.sh

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Before / after</title>
+<style>
+  :root { --ink: #1f1e1c; --muted: #5f5e5a; --line: #d3d1c7; --bg: #ffffff; --panel: #f6f5f1; --before: #5f5e5a; --after: #0f6e56; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9e7e1; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
+  #frame { display: inline-block; background: var(--bg); padding: 28px 32px 24px; }
+  h1 { margin: 0 0 18px; font-size: 22px; font-weight: 600; }
+  .cols { display: flex; gap: 28px; align-items: flex-start; }
+  .col { flex: 0 0 auto; }
+  .pill { display: inline-block; font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 999px; margin-bottom: 10px; color: #fff; }
+  .before .pill { background: var(--before); }
+  .after .pill { background: var(--after); }
+  .shot { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+  .shot img, .shot canvas { display: block; max-width: 1000px; max-height: 1300px; width: auto; height: auto; }
+  .after .shot { border: 2px solid var(--after); }
+  .empty { width: 600px; height: 360px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 15px; }
+  .caption { margin: 16px 0 0; font-size: 14px; color: var(--muted); max-width: 2028px; }
+</style>
+</head>
+<body>
+<div id="frame">
+  <h1 id="title"></h1>
+  <div class="cols">
+    <div class="col before"><span class="pill" id="beforeLabel">Before</span><div class="shot" id="beforeShot"></div></div>
+    <div class="col after"><span class="pill" id="afterLabel">After</span><div class="shot" id="afterShot"></div></div>
+  </div>
+  <p class="caption" id="caption"></p>
+</div>
+<script>
+  window.frameReady = false;
+  const b64 = location.hash.slice(1).replace(/-/g, '+').replace(/_/g, '/');
+  const data = b64 ? JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)))) : {};
+  const setText = (id, value) => { const el = document.getElementById(id); if (value) el.textContent = value; else if (id === 'title' || id === 'caption') el.remove(); };
+  setText('title', data.title);
+  setText('beforeLabel', data.beforeLabel || 'Before');
+  setText('afterLabel', data.afterLabel || 'After');
+  setText('caption', data.caption);
+
+  // Optional crop: crop="x,y,width,height" in page pixels (from highlight.js "region"), plus pad (default 96).
+  const pad = Number(data.pad ?? 96);
+  const crop = data.crop ? data.crop.split(',').map(Number) : null;
+  const draw = (img) => {
+    if (!crop || crop.length !== 4 || crop.some(Number.isNaN)) return img;
+    const x = Math.max(0, crop[0] - pad);
+    const y = Math.max(0, crop[1] - pad);
+    const w = Math.min(img.naturalWidth - x, crop[2] + pad * 2);
+    const h = Math.min(img.naturalHeight - y, crop[3] + pad * 2);
+    if (w <= 0 || h <= 0) return img;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, x, y, w, h, 0, 0, w, h);
+    return c;
+  };
+
+  const pending = [];
+  const place = (slot, src, emptyText) => {
+    const host = document.getElementById(slot);
+    if (!src) { host.innerHTML = `<div class="empty">${emptyText}</div>`; return; }
+    const img = new Image();
+    pending.push(new Promise((resolve) => {
+      img.onload = () => { host.appendChild(draw(img)); resolve(); };
+      img.onerror = () => { host.innerHTML = '<div class="empty">Image not found</div>'; resolve(); };
+    }));
+    img.src = src;
+  };
+  place('beforeShot', data.before, 'Not present before');
+  place('afterShot', data.after, 'Removed in this change');
+  Promise.all(pending).then(() => requestAnimationFrame(() => { window.frameReady = true; }));
+</script>
+</body>
+</html>
